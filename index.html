@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Дильшод — Запись</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0a;--card:#151515;--border:#222;
+  --text:#eee;--dim:#777;--accent:#c9a96e;
+  --accent2:#b8935a;--green:#2ecc71;--red:#e74c3c;
+  --radius:14px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+body{padding-bottom:env(safe-area-inset-bottom,0)}
+
+.screen{display:none;padding:16px;animation:fadeIn .25s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#0a0a0a;margin:0 auto 12px}
+.hero{text-align:center;padding:24px 0 16px}
+.hero h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.hero .sub{color:var(--dim);font-size:13px}
+.hero .tags{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.tag{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--dim)}
+
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:var(--radius);
+  font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center}
+.btn-primary{background:var(--accent);color:#0a0a0a}
+.btn-primary:active{background:var(--accent2)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:active{background:var(--card)}
+.btn-danger{background:var(--red);color:#fff}
+.btn+.btn{margin-top:10px}
+
+.section-title{font-size:15px;font-weight:600;margin:20px 0 10px;display:flex;align-items:center;gap:6px}
+
+.cal-scroll{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.cal-scroll::-webkit-scrollbar{display:none}
+.day-card{flex:0 0 auto;width:70px;padding:10px 0;border-radius:var(--radius);text-align:center;
+  background:var(--card);border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.day-card.off{opacity:.35;pointer-events:none}
+.day-card.sel{border-color:var(--accent);background:#1a1610}
+.day-card .wd{font-size:11px;color:var(--dim);margin-bottom:2px}
+.day-card .dd{font-size:20px;font-weight:700}
+.day-card .mo{font-size:11px;color:var(--dim);margin-top:1px}
+.day-card .free{font-size:10px;margin-top:4px}
+.day-card .free.has{color:var(--green)}
+.day-card .free.no{color:var(--red)}
+
+.slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.slot{padding:14px 0;border-radius:var(--radius);text-align:center;font-size:14px;font-weight:600;
+  border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.slot.free{background:var(--card);color:var(--green);border-color:#1a3a25}
+.slot.free:active{background:#1a3a25}
+.slot.free.sel{background:var(--accent);color:#0a0a0a;border-color:var(--accent)}
+.slot.booked{background:#1c1215;color:var(--red);border-color:#3a1a1a;pointer-events:none}
+.slot.past,.slot.blocked{background:var(--card);color:#444;border-color:var(--border);pointer-events:none}
+
+.legend{display:flex;gap:14px;margin:12px 0;font-size:11px;color:var(--dim)}
+.legend span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.legend .l-free::before{background:var(--green)}
+.legend .l-busy::before{background:var(--red)}
+.legend .l-off::before{background:#444}
+
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+.form-group input{width:100%;padding:13px 14px;border-radius:var(--radius);border:1px solid var(--border);
+  background:var(--card);color:var(--text);font-size:15px;outline:none;transition:border .2s}
+.form-group input:focus{border-color:var(--accent)}
+
+.summary{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:16px 0}
+.summary .row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px}
+.summary .row .label{color:var(--dim)}
+
+.booking-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.booking-card .bc-date{font-weight:600;font-size:15px}
+.booking-card .bc-time{color:var(--accent);font-size:14px;margin-top:2px}
+.booking-card .bc-actions{display:flex;gap:8px;margin-top:10px}
+.booking-card .bc-btn{flex:1;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+.bc-btn.cancel{background:#2a1515;color:var(--red)}
+.bc-btn.move{background:#1a1610;color:var(--accent)}
+.bc-btn:disabled{opacity:.4;pointer-events:none}
+
+.back-row{display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;color:var(--dim);font-size:14px}
+.back-row:active{color:var(--text)}
+
+.empty{text-align:center;padding:40px 0;color:var(--dim);font-size:14px}
+
+.toast{position:fixed;bottom:20px;left:16px;right:16px;padding:14px 18px;border-radius:var(--radius);
+  font-size:14px;font-weight:500;z-index:999;transform:translateY(100px);opacity:0;transition:all .3s}
+.toast.show{transform:none;opacity:1}
+.toast.ok{background:#1a3a25;color:var(--green);border:1px solid #2a5a35}
+.toast.err{background:#2a1515;color:var(--red);border:1px solid #3a2020}
+
+.loader{display:flex;justify-content:center;padding:40px 0}
+.loader::after{content:'';width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="s-home" class="screen active">
+  <div class="hero">
+    <div class="avatar">Д</div>
+    <h1>Дильшод</h1>
+    <div class="sub">Барбер · Опыт более 5 лет</div>
+    <div class="tags">
+      <span class="tag">✂️ Стрижка</span>
+      <span class="tag">💰 60,000 сум</span>
+      <span class="tag">⏱ ~1 час</span>
+    </div>
+  </div>
+  <div style="margin-top:24px">
+    <button class="btn btn-primary" onclick="showScreen('s-calendar')">✂️ Записаться</button>
+    <button class="btn btn-outline" onclick="loadMyBookings()">📋 Мои записи</button>
+  </div>
+  <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--dim)">
+    📅 Пн–Сб, 11:00–20:00
+  </div>
+</div>
+
+<!-- CALENDAR -->
+<div id="s-calendar" class="screen">
+  <div class="back-row" onclick="showScreen('s-home')">← Назад</div>
+  <div class="section-title">📅 Выберите день</div>
+  <div class="cal-scroll" id="cal-scroll"></div>
+  <div class="section-title" id="slots-title" style="display:none">⏰ Выберите время</div>
+  <div class="legend" id="slots-legend" style="display:none">
+    <span class="l-free">свободно</span>
+    <span class="l-busy">занято</span>
+    <span class="l-off">прошло</span>
+  </div>
+  <div class="slots-grid" id="slots-grid"></div>
+  <div id="slots-empty" class="empty" style="display:none">Нет свободных окон</div>
+</div>
+
+<!-- CONFIRM -->
+<div id="s-confirm" class="screen">
+  <div class="back-row" onclick="showScreen('s-calendar')">← Назад</div>
+  <div class="section-title">📋 Подтверждение</div>
+  <div class="summary" id="confirm-summary"></div>
+  <div class="form-group">
+    <label>Ваше имя</label>
+    <input type="text" id="inp-name" placeholder="Имя">
+  </div>
+  <div class="form-group">
+    <label>Телефон</label>
+    <input type="tel" id="inp-phone" placeholder="+998 __ ___ __ __">
+  </div>
+  <button class="btn btn-primary" id="btn-confirm" onclick="submitBooking()">Подтвердить запись</button>
+</div>
+
+<!-- SUCCESS -->
+<div id="s-success" class="screen">
+  <div style="text-align:center;padding:40px 0">
+    <div style="font-size:48px;margin-bottom:16px">✅</div>
+    <h2>Записано!</h2>
+    <p style="color:var(--dim);margin-top:8px;font-size:14px" id="success-info"></p>
+    <button class="btn btn-outline" style="margin-top:24px" onclick="showScreen('s-home')">На главную</button>
+  </div>
+</div>
+
+<!-- MY BOOKINGS -->
+<div id="s-bookings" class="screen">
+  <div class="back-row" onclick="showScreen('s-home')">← Назад</div>
+  <div class="section-title">📋 Мои записи</div>
+  <div id="bookings-list"></div>
+  <div id="bookings-empty" class="empty" style="display:none">Нет активных записей</div>
+</div>
+
+<!-- RESCHEDULE -->
+<div id="s-resched" class="screen">
+  <div class="back-row" onclick="loadMyBookings()">← Назад</div>
+  <div class="section-title">🔄 Перенос записи</div>
+  <div class="cal-scroll" id="resched-cal"></div>
+  <div class="section-title" id="resched-slots-title" style="display:none">⏰ Новое время</div>
+  <div class="slots-grid" id="resched-slots"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) tg.ready();
+if (tg) tg.expand();
+
+const API = (() => {
+  const s = document.currentScript || document.querySelector('script:last-of-type');
+  const loc = window.location;
+  if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || loc.port)
+    return loc.origin;
+  return loc.origin;
+})();
+
+const initData = tg ? tg.initData : '';
+
+const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const MO = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+let selectedDate = null, selectedTime = null, reschedulingId = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function toast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (ok ? 'ok' : 'err') + ' show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function api(path, opts = {}) {
+  const headers = {'Content-Type': 'application/json'};
+  if (initData) headers['X-Init-Data'] = initData;
+  const r = await fetch(API + path, {...opts, headers});
+  return r.json();
+}
+
+// ── Calendar ──
+async function loadCalendar(targetCal = 'cal-scroll', onSelect = null) {
+  const el = document.getElementById(targetCal);
+  el.innerHTML = '<div class="loader"></div>';
+  const data = await api('/api/calendar');
+  el.innerHTML = '';
+  data.days.forEach(d => {
+    const dt = new Date(d.date + 'T00:00:00');
+    const card = document.createElement('div');
+    card.className = 'day-card' + (d.off ? ' off' : '');
+    const day = dt.getDate();
+    const wd = WD[d.weekday];
+    const mo = MO[dt.getMonth()];
+    card.innerHTML =
+      `<div class="wd">${wd}</div>` +
+      `<div class="dd">${day}</div>` +
+      `<div class="mo">${mo}</div>` +
+      `<div class="free ${d.free > 0 ? 'has' : 'no'}">${d.off ? 'вых' : (d.free > 0 ? d.free + ' ок.' : '—')}</div>`;
+    if (!d.off && d.free > 0) {
+      card.onclick = () => {
+        el.querySelectorAll('.day-card').forEach(c => c.classList.remove('sel'));
+        card.classList.add('sel');
+        if (onSelect) onSelect(d.date);
+        else loadSlots(d.date);
+      };
+    }
+    el.appendChild(card);
+  });
+}
+
+async function loadSlots(dateStr) {
+  selectedDate = dateStr;
+  selectedTime = null;
+  const grid = document.getElementById('slots-grid');
+  const title = document.getElementById('slots-title');
+  const legend = document.getElementById('slots-legend');
+  const empty = document.getElementById('slots-empty');
+  grid.innerHTML = '<div class="loader" style="grid-column:1/-1"></div>';
+  title.style.display = '';
+  legend.style.display = '';
+  empty.style.display = 'none';
+
+  const data = await api('/api/schedule?date=' + dateStr);
+  grid.innerHTML = '';
+  if (!data.slots.length) {
+    empty.style.display = '';
+    title.style.display = 'none';
+    legend.style.display = 'none';
+    return;
+  }
+  let hasFree = false;
+  data.slots.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'slot ' + s.status;
+    el.textContent = s.time;
+    if (s.status === 'free') {
+      hasFree = true;
+      el.onclick = () => {
+        grid.querySelectorAll('.slot').forEach(x => x.classList.remove('sel'));
+        el.classList.add('sel');
+        selectedTime = s.time;
+        goConfirm();
+      };
+    }
+    grid.appendChild(el);
+  });
+  if (!hasFree) empty.style.display = '';
+}
+
+function goConfirm() {
+  const dt = new Date(selectedDate + 'T00:00:00');
+  const endH = parseInt(selectedTime) + 1;
+  document.getElementById('confirm-summary').innerHTML =
+    `<div class="row"><span class="label">Услуга</span><span>✂️ Стрижка</span></div>` +
+    `<div class="row"><span class="label">Дата</span><span>${dt.getDate()} ${MO[dt.getMonth()]} (${WD[(dt.getDay()+6)%7]})</span></div>` +
+    `<div class="row"><span class="label">Время</span><span>${selectedTime} – ${endH < 10 ? '0' : ''}${endH}:00</span></div>` +
+    `<div class="row"><span class="label">Стоимость</span><span>60,000 сум</span></div>`;
+  const user = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  if (user) document.getElementById('inp-name').value = user.first_name || '';
+  showScreen('s-confirm');
+}
+
+async function submitBooking() {
+  const name = document.getElementById('inp-name').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  if (!name) { toast('Укажите имя', false); return; }
+  if (!phone || phone.length < 9) { toast('Укажите номер телефона', false); return; }
+
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true;
+  btn.textContent = 'Записываем...';
+
+  try {
+    if (reschedulingId) {
+      const res = await api('/api/reschedule', {
+        method: 'POST',
+        body: JSON.stringify({booking_id: reschedulingId, new_date: selectedDate, new_time: selectedTime})
+      });
+      reschedulingId = null;
+      if (!res.ok) { toast(res.error || 'Ошибка', false); return; }
+    } else {
+      const res = await api('/api/book', {
+        method: 'POST',
+        body: JSON.stringify({date: selectedDate, time: selectedTime, name, phone})
+      });
+      if (!res.ok) { toast(res.error || 'Ошибка', false); return; }
+    }
+    const dt = new Date(selectedDate + 'T00:00:00');
+    document.getElementById('success-info').textContent =
+      `${dt.getDate()} ${MO[dt.getMonth()]} в ${selectedTime}`;
+    showScreen('s-success');
+  } catch (e) {
+    toast('Ошибка сети', false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Подтвердить запись';
+  }
+}
+
+// ── My Bookings ──
+async function loadMyBookings() {
+  showScreen('s-bookings');
+  const list = document.getElementById('bookings-list');
+  const empty = document.getElementById('bookings-empty');
+  list.innerHTML = '<div class="loader"></div>';
+  empty.style.display = 'none';
+
+  try {
+    const data = await api('/api/my-bookings');
+    list.innerHTML = '';
+    if (!data.bookings || !data.bookings.length) {
+      empty.style.display = '';
+      return;
+    }
+    data.bookings.forEach(b => {
+      const dt = new Date(b.book_date + 'T00:00:00');
+      const card = document.createElement('div');
+      card.className = 'booking-card';
+      const endH = parseInt(b.book_time) + 1;
+      card.innerHTML =
+        `<div class="bc-date">${dt.getDate()} ${MO[dt.getMonth()]} (${WD[(dt.getDay()+6)%7]})</div>` +
+        `<div class="bc-time">${b.book_time} – ${endH < 10 ? '0' : ''}${endH}:00 · ✂️ Стрижка</div>` +
+        `<div class="bc-actions">` +
+          `<button class="bc-btn cancel" ${b.can_cancel ? '' : 'disabled'} onclick="cancelBooking(${b.id})">❌ Отменить</button>` +
+          `<button class="bc-btn move" ${b.can_cancel ? '' : 'disabled'} onclick="startReschedule(${b.id})">🔄 Перенести</button>` +
+        `</div>`;
+      list.appendChild(card);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Ошибка загрузки</div>';
+  }
+}
+
+async function cancelBooking(bid) {
+  if (!confirm('Отменить запись?')) return;
+  const res = await api('/api/cancel', {method: 'POST', body: JSON.stringify({booking_id: bid})});
+  if (res.ok) {
+    toast('Запись отменена');
+    loadMyBookings();
+  } else {
+    toast(res.error || 'Ошибка', false);
+  }
+}
+
+function startReschedule(bid) {
+  reschedulingId = bid;
+  showScreen('s-resched');
+  loadCalendar('resched-cal', loadReschedSlots);
+}
+
+async function loadReschedSlots(dateStr) {
+  selectedDate = dateStr;
+  selectedTime = null;
+  const grid = document.getElementById('resched-slots');
+  const title = document.getElementById('resched-slots-title');
+  grid.innerHTML = '<div class="loader" style="grid-column:1/-1"></div>';
+  title.style.display = '';
+
+  const data = await api('/api/schedule?date=' + dateStr);
+  grid.innerHTML = '';
+  data.slots.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'slot ' + s.status;
+    el.textContent = s.time;
+    if (s.status === 'free') {
+      el.onclick = () => {
+        grid.querySelectorAll('.slot').forEach(x => x.classList.remove('sel'));
+        el.classList.add('sel');
+        selectedTime = s.time;
+        goConfirm();
+      };
+    }
+    grid.appendChild(el);
+  });
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  if (params.get('screen') === 'bookings') loadMyBookings();
+});
+
+showScreen('s-home');
+loadCalendar();
+</script>
+</body>
+</html>
